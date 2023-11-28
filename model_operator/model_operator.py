@@ -18,7 +18,7 @@ class BaseModelOperator():
             description: str,
             # inputs/outputs
             input_attributes: List[Attribute],
-            output_attributes: List[Attribute],
+            output_attribute: Attribute,
             # dataset
             # load_dataset_fn: Callable,
             use_validation_set: bool,
@@ -27,20 +27,20 @@ class BaseModelOperator():
             # model
             model_architecture_fn: Callable,
             # model hyperparameters
-            constant_learning_rate: float,
+            constant_learning_rate: float=None,
             batch_size: int,
             loss_fn,
             metrics: list,
             n_epochs: int,
             extra_architecture_parameters: dict,
-            cosine_decay_params: dict
+            cosine_decay_params: dict=None
     ):
         # meta
         self.model_version = model_version # ex. 'v0p01'
         self.description = description
         # inputs/outputs
         self.input_attributes = input_attributes
-        self.output_attributes = output_attributes
+        self.output_attribute = output_attribute
         # dataset
         # self.load_dataset_fn = load_dataset_fn
         self.use_validation_set = use_validation_set
@@ -56,7 +56,11 @@ class BaseModelOperator():
             self.validation_size = validation_size
         # model
         self.model_architecture_fn = model_architecture_fn
-        self.extra_architecture_parameters = extra_architecture_parameters
+        if isnone(extra_architecture_parameters):
+            self.extra_architecture_parameters = dict()
+        else:
+            self.extra_architecture_parameters = extra_architecture_parameters
+        
         # model hypterparameters
         self.constant_learning_rate = constant_learning_rate
         self.batch_size = batch_size
@@ -65,10 +69,10 @@ class BaseModelOperator():
         self.n_epochs = n_epochs
 
         self.cosine_decay_params = cosine_decay_params
-        self.scaler = Scaler(attributes=input_attributes + output_attributes)
+        self.scaler = Scaler(attributes=input_attributes + [output_attribute])
 
-        if not isnone(cosine_decay_params) and isnone(constant_learning_rate):
-            raise AttributeConflictError(cosine_decay_params, constant_learning_rate)
+        if not isnone(cosine_decay_params) and not isnone(constant_learning_rate):
+            raise AttributeConflictError('cosine_decay_params', 'constant_learning_rate')
 
     def split_dataframe(self, df:pd.DataFrame, fold):
         df_train, df_test = df[df['fold'] != fold].copy(deep=True), df[df['fold'] == fold].copy(deep=True)
@@ -143,8 +147,12 @@ class BaseModelOperator():
             yhat_valid = self._predict(model, x_valid)
             for key, val in yhat_valid.items():
                 df_valid[key] = val
+
+            df_valid = self.inverse_transform(df_valid)
+            df_test = self.inverse_transform(df_test)
             return history, df_valid, df_test
         
+        df_test = self.inverse_transform(df_test)
         return history, df_test
 
 
@@ -161,7 +169,7 @@ class BaseModelOperator():
         ret = []
         for df in arg:
             x = df[[attr.name for attr in self.input_attributes]].to_numpy()
-            y = df[[attr.name for attr in self.output_attributes]].to_numpy()
+            y = df[[self.output_attribute.name]].to_numpy()
             ret.extend([x, y])
         return (ret)
     
@@ -170,4 +178,10 @@ class BaseModelOperator():
         E.G. If the output is tfp and we don't want convert_to_tensor_fn() to be in effect, we can overwrite this.
         Returns a dictionary of form {col_name: values} which will be added to df_[test, valid] in self.evaluate_on_single_fold
         """
-        return dict(yhat=model.predict(x_test))
+        yhat = model.predict(x_test)
+        if self.output_attribute.transform != 'none':
+            # inverse transform
+            params = self.output_attribute.get_params()
+            scale, offset = params['scale'], params['offset']
+            yhat = yhat * scale + offset
+        return dict(yhat=yhat)
