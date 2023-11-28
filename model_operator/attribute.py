@@ -3,31 +3,39 @@ import pandas as pd
 import numpy as np
 
 class Attribute():
-    def __init__(self, name, mode=None, scale=None, offset=None):
+    def __init__(self, name, transform=None, scale=None, offset=None):
         self.name = name
-        if mode is not None:
-            self.mode = mode
-            if not mode in ['normalize', 'percent']:
-                raise ValueError(f"Expected 'mode' in ['normalize', 'percent']. Got {mode} instead.")
+        if transform is not None:
+            self.transform = transform
+            if not transform in ['normalize', 'percent', 'none']:
+                raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'none']. Got {transform} instead.")
             if (scale is not None) or (offset is not None):
                 print("[User Warning] Argument(s) 'scale' and/or 'offset' will be ignored.")
         else:
-            self.mode = None
+            self.transform = None
             self.scale = scale
             self.offset = offset
             if (scale is None) or (offset is None):
-                raise ValueError(f"If mode=None, both 'scale' and 'offset' must be specified.")
+                raise ValueError(f"If transform=None, both 'scale' and 'offset' must be specified.")
         
         self._fit = False
 
+    def __repr__(self) -> str:
+        return f"<class Attribute({self.name})>"
+
     def fit(self, values):
-        if self.mode == 'percent':
+        if self.transform == 'percent':
             self.scale = 100
             self.offset = 50
-        elif self.mode == 'normalize':
+        elif self.transform == 'normalize':
             self.scale = np.std(values)
             self.offset = np.mean(values)
-        elif self.mode is None:
+            if np.abs(self.scale) < 1e-4:
+                print(f'[Warning] Std for {self.name} is too small; {self.scale:.05f}. This could cause precision error.')
+        elif self.transform == 'none':
+            self.scale = 1.
+            self.offset = 0.
+        elif self.transform is None:
             # values must have been set at instantiation.
             pass
 
@@ -44,7 +52,7 @@ class Scaler():
 
         for attr in attributes:
             if not isinstance(attr, Attribute):
-                raise ValueError(f"Expected elements of 'attributes' to be of type ScalerAttribute. Got {attr} instead at position {attributes.index(attr)}.")
+                raise ValueError(f"Expected elements of 'attributes' to be of type Attribute. Got {attr} instead at position {attributes.index(attr)}.")
             
     def fit(self, df: pd.DataFrame):
         for attr in self.attributes:
@@ -59,6 +67,7 @@ class Scaler():
     def transform(self, df: pd.DataFrame):
         df = df.copy(deep=True)
         for attr in self.attributes:
+            if attr.transform == 'none': continue
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
             df[attr.name] = (df[attr.name] - offset) / scale
@@ -71,6 +80,7 @@ class Scaler():
     def inverse_transform(self, df):
         df = df.copy(deep=True)
         for attr in self.attributes:
+            if attr.transform == 'none': continue
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
             df[attr.name] = df[attr.name] * scale + offset
