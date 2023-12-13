@@ -7,8 +7,8 @@ class Attribute():
         self.name = name
         if transform is not None:
             self.transform = transform
-            if not transform in ['normalize', 'percent', 'none']:
-                raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'none']. Got {transform} instead.")
+            if not transform in ['normalize', 'percent', 'identity']:
+                raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'identity']. Got {transform} instead.")
             if (scale is not None) or (offset is not None):
                 print("[User Warning] Argument(s) 'scale' and/or 'offset' will be ignored.")
         else:
@@ -20,8 +20,30 @@ class Attribute():
         
         self._fit = False
 
+    @staticmethod
+    def from_dict(d):
+        raise NotImplementedError("[WARNING] This function is not fully tested. Use of this function should be restricted.")
+        ret = Attribute(name=d['name'], transform='percent') # 'transform' will be overwritten anyways.
+
+        for attr in ['transform', 'scale', 'offset', '_fit']:
+            try:
+                ret.__setattr__(attr, d[attr])
+            except KeyError as e:
+                raise KeyError(f"from_dict() requires key '{attr}' in its argument 'd'.")
+
+        return ret
+
     def __repr__(self) -> str:
         return f"<class Attribute({self.name})>"
+
+    def as_dict(self):
+        return {
+            "name": self.name,
+            "transform": self.transform,
+            "scale": self.scale,
+            "offset": self.offset,
+            "_fit": self._fit
+        }
 
     def fit(self, values):
         if self.transform == 'percent':
@@ -32,7 +54,7 @@ class Attribute():
             self.offset = np.mean(values)
             if np.abs(self.scale) < 1e-4:
                 print(f'[Warning] Std for {self.name} is too small; {self.scale:.05f}. This could cause precision error.')
-        elif self.transform == 'none':
+        elif self.transform == 'identity':
             self.scale = 1.
             self.offset = 0.
         elif self.transform is None:
