@@ -3,7 +3,7 @@ from .attribute import Attribute, Scaler
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import LinearRegression
 
 class AttributeConflictError(Exception):
     def __init__(self, attr_a, attr_b):
@@ -247,6 +247,7 @@ class LinearRegressionOperator():
                  input_variables: List[str],
                  output_variable: str
         ):
+        raise NotImplementedError('implement LinearRegression without sklearn')
         self.input_variables = input_variables
         self.output_variable = output_variable
 

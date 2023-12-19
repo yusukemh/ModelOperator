@@ -3,20 +3,23 @@ import pandas as pd
 import numpy as np
 
 class Attribute():
-    def __init__(self, name, transform=None, scale=None, offset=None):
+    def __init__(self, name, transform, scale=None, offset=None):
         self.name = name
-        if transform is not None:
-            self.transform = transform
-            if not transform in ['normalize', 'percent', 'identity']:
-                raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'identity']. Got {transform} instead.")
-            if (scale is not None) or (offset is not None):
-                print("[User Warning] Argument(s) 'scale' and/or 'offset' will be ignored.")
-        else:
-            self.transform = None
+        # transform cannot be None
+        if not transform in ['normalize', 'percent', 'identity', 'custom']:
+            raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'identity', 'custom']. Got {transform} instead.")
+        self.transform = transform
+        # if transform == 'custom' then scale and offset must be given
+        if transform == 'custom':
+            if (scale is None) or (offset is None):
+                raise ValueError(f"If transform == 'custom', then 'scale' and 'offset' must be specified.")
             self.scale = scale
             self.offset = offset
-            if (scale is None) or (offset is None):
-                raise ValueError(f"If transform=None, both 'scale' and 'offset' must be specified.")
+        # if transform in ['normalize', 'percent', 'identiry'] but scale and/or offset is/are given, they will be ignored.
+        if transform != 'custom':
+            if (scale is not None) or (offset is not None):
+                print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
+                      f"'scale' and/or 'offset' will be ignored for this Attribute object {self.__repr__()}.")
         
         self._fit = False
 
@@ -89,7 +92,6 @@ class Scaler():
     def transform(self, df: pd.DataFrame):
         df = df.copy(deep=True)
         for attr in self.attributes:
-            if attr.transform is None: continue
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
             df[attr.name] = (df[attr.name] - offset) / scale
