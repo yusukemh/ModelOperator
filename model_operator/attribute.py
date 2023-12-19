@@ -89,7 +89,7 @@ class Scaler():
     def transform(self, df: pd.DataFrame):
         df = df.copy(deep=True)
         for attr in self.attributes:
-            if attr.transform == 'none': continue
+            if attr.transform is None: continue
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
             df[attr.name] = (df[attr.name] - offset) / scale
