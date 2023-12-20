@@ -1,13 +1,13 @@
 from typing import List, Callable
-from .attribute import Attribute, Scaler
+from .variable import Variable, Scaler
 import pandas as pd
 import tensorflow as tf
 import numpy as np
 # from sklearn.linear_model import LinearRegression
 
-class AttributeConflictError(Exception):
-    def __init__(self, attr_a, attr_b):
-        super().__init__(f"Attributes '{attr_a}' and '{attr_b}' cannot be specified simultaneously.")
+class ArgumentConflictError(Exception):
+    def __init__(self, arg_a, arg_b):
+        super().__init__(f"Arguments '{arg_a}' and '{arg_b}' cannot be specified simultaneously.")
 
 def isnone(val):
     return val is None
@@ -22,8 +22,8 @@ class BaseModelOperator():
             model_version: str,
             description: str,
             # inputs/outputs
-            input_attributes: List[Attribute],
-            output_attribute: Attribute,
+            input_variables: List[Variable],
+            output_variable: Variable,
             # dataset
             # load_dataset_fn: Callable,
             use_validation_set: bool,
@@ -44,8 +44,8 @@ class BaseModelOperator():
         self.model_version = model_version # ex. 'v0p01'
         self.description = description
         # inputs/outputs
-        self.input_attributes = input_attributes
-        self.output_attribute = output_attribute
+        self.input_variables = input_variables
+        self.output_variable = output_variable
         # dataset
         # self.load_dataset_fn = load_dataset_fn
         self.use_validation_set = use_validation_set
@@ -74,19 +74,19 @@ class BaseModelOperator():
         self.n_epochs = n_epochs
 
         self.cosine_decay_params = cosine_decay_params
-        self.scaler = Scaler(attributes=input_attributes + [output_attribute])
+        self.scaler = Scaler(variables=input_variables + [output_variable])
 
         if not isnone(cosine_decay_params) and not isnone(constant_learning_rate):
-            raise AttributeConflictError('cosine_decay_params', 'constant_learning_rate')
+            raise ArgumentConflictError('cosine_decay_params', 'constant_learning_rate')
     
-    def get_attribute(self, target_attr):
-        """Given string name for attribute, returns the Attribute() object.
-        Searches both self.input_attributes and self.output_attribute.
+    def get_variable(self, target_var):
+        """Given string name for variable, returns the Variable() object.
+        Searches both self.input_variables and self.output_variable.
         """
         ret = []
-        for attr in self.input_attributes + [self.output_attribute]:
-            if attr.name == target_attr:
-                ret.append(attr)
+        for var in self.input_variables + [self.output_variable]:
+            if var.name == target_var:
+                ret.append(var)
         assert len(ret) == 1
         return ret[0]
 
@@ -189,8 +189,8 @@ class BaseModelOperator():
     def split_x_y(self, *arg):
         ret = []
         for df in arg:
-            x = df[[attr.name for attr in self.input_attributes]].to_numpy()
-            y = df[[self.output_attribute.name]].to_numpy()
+            x = df[[var.name for var in self.input_variables]].to_numpy()
+            y = df[[self.output_variable.name]].to_numpy()
             ret.extend([x, y])
         return (ret)
 
@@ -225,9 +225,9 @@ class BaseModelOperator():
         Returns a dictionary of form {col_name: values} which will be added to df_[test, valid] in self.evaluate_on_single_fold
         """
         yhat = model.predict(x_test)
-        if self.output_attribute.transform is not None:
+        if self.output_variable.transform is not None:
             # inverse transform
-            params = self.output_attribute.get_params()
+            params = self.output_variable.get_params()
             scale, offset = params['scale'], params['offset']
             yhat = yhat * scale + offset
         return dict(yhat=yhat)

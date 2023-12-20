@@ -2,7 +2,7 @@ from typing import List
 import pandas as pd
 import numpy as np
 
-class Attribute():
+class Variable():
     def __init__(self, name, transform, scale=None, offset=None):
         self.name = name
         # transform cannot be None
@@ -19,14 +19,14 @@ class Attribute():
         if transform != 'custom':
             if (scale is not None) or (offset is not None):
                 print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
-                      f"'scale' and/or 'offset' will be ignored for this Attribute object {self.__repr__()}.")
+                      f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
         
         self._fit = False
 
     @staticmethod
     def from_dict(d):
         raise NotImplementedError("[WARNING] This function is not fully tested. Use of this function should be restricted.")
-        ret = Attribute(name=d['name'], transform='percent') # 'transform' will be overwritten anyways.
+        ret = Variable(name=d['name'], transform='percent') # 'transform' will be overwritten anyways.
 
         for attr in ['transform', 'scale', 'offset', '_fit']:
             try:
@@ -37,7 +37,7 @@ class Attribute():
         return ret
 
     def __repr__(self) -> str:
-        return f"<class Attribute({self.name})>"
+        return f"<class Variable({self.name})>"
 
     def as_dict(self):
         return {
@@ -72,26 +72,26 @@ class Attribute():
         return dict(scale=self.scale, offset=self.offset)
 
 class Scaler():
-    def __init__(self, attributes: List[Attribute]):
-        self.attributes = attributes
+    def __init__(self, variables: List[Variable]):
+        self.variables = variables
 
-        for attr in attributes:
-            if not isinstance(attr, Attribute):
-                raise ValueError(f"Expected elements of 'attributes' to be of type Attribute. Got {attr} instead at position {attributes.index(attr)}.")
+        for attr in variables:
+            if not isinstance(attr, Variable):
+                raise ValueError(f"Expected elements of 'variables' to be of type Variable. Got {attr} instead at position {variables.index(attr)}.")
             
     def fit(self, df: pd.DataFrame):
-        for attr in self.attributes:
+        for attr in self.variables:
             attr.fit(df[attr.name].values)
     
     def get_params(self):
         ret = {}
-        for attr in self.attributes:
+        for attr in self.variables:
             ret[attr.name] = attr.get_params()
         return ret
     
     def transform(self, df: pd.DataFrame):
         df = df.copy(deep=True)
-        for attr in self.attributes:
+        for attr in self.variables:
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
             df[attr.name] = (df[attr.name] - offset) / scale
@@ -103,7 +103,7 @@ class Scaler():
     
     def inverse_transform(self, df):
         df = df.copy(deep=True)
-        for attr in self.attributes:
+        for attr in self.variables:
             if attr.transform == 'none': continue
             params = attr.get_params()
             scale, offset = params['scale'], params['offset']
