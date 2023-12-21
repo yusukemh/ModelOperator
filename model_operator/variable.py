@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 
 class Variable():
-    def __init__(self, name, transform, scale=None, offset=None):
+    def __init__(self, name, transform, scale=None, offset=None, _fit=False):
+        """Defines Variable and how it should be transformed as preprocessing.
+        """
         self.name = name
         # transform cannot be None
         if not transform in ['normalize', 'percent', 'identity', 'custom']:
@@ -13,15 +15,29 @@ class Variable():
         if transform == 'custom':
             if (scale is None) or (offset is None):
                 raise ValueError(f"If transform == 'custom', then 'scale' and 'offset' must be specified.")
-            self.scale = scale
-            self.offset = offset
+            
         # if transform in ['normalize', 'percent', 'identiry'] but scale and/or offset is/are given, they will be ignored.
         if transform != 'custom':
             if (scale is not None) or (offset is not None):
-                print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
-                      f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
-        
-        self._fit = False
+                # if transform is not custom but scale and offset is given.
+                if transform == 'normalize' and _fit:
+                    # In this case operation is allowed.
+                    self.scale = scale
+                    self.offset = offset
+                else:
+                    # If transform='normalize' but _fit == False, OR, transform is in ['percent', 'identity']
+                    print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
+                          f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
+                    # ignore input
+                    self.scale = None
+                    self.offset = None
+            else:
+                self.scale = None
+                self.offset = None
+        else:
+            self.scale = scale
+            self.offset = offset
+        self._fit = _fit
 
     @staticmethod
     def from_dict(d):

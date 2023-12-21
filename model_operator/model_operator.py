@@ -3,6 +3,8 @@ from .variable import Variable, Scaler
 import pandas as pd
 import tensorflow as tf
 import numpy as np
+import pathlib
+import json
 # from sklearn.linear_model import LinearRegression
 
 class ArgumentConflictError(Exception):
@@ -78,6 +80,44 @@ class BaseModelOperator():
 
         if not isnone(cosine_decay_params) and not isnone(constant_learning_rate):
             raise ArgumentConflictError('cosine_decay_params', 'constant_learning_rate')
+
+    @staticmethod
+    def from_json(filename, model_architecture_fn, loss_fn):
+        """Creates ModelOperator from json file.
+        Since model_architecture_fn and loss_fn can only be loaded from json as string,
+        this function accepts model_architecture_fn and loss_fn as actual functions to properly assign these attributes.
+        """
+        with open(filename, 'rb') as f:
+            data = json.load(f)
+
+        data['input_variables'] = [Variable(**input_var_dict) for input_var_dict in data['input_variables']]
+        data['output_variable'] = Variable(**data['output_variable'])
+
+        data['model_architecture_fn'] = model_architecture_fn
+        data['loss_fn'] = loss_fn
+
+        return BaseModelOperator(**data)
+    
+    def __eq__(self, other):
+        return self.as_dict() == other.as_dict()
+
+    def as_dict(self):
+        ret = {}
+        ret['model_version'] = self.model_version
+        ret['description'] = self.description
+        ret['input_variables'] = [var.as_dict() for var in self.input_variables]
+        ret['output_variable'] = self.output_variable.as_dict()
+        ret['use_validation_set'] = self.use_validation_set
+        ret['random_validation_set'] = self.random_validation_set
+        ret['validation_size'] = self.validation_size
+        ret['model_architecture_fn'] = self.model_architecture_fn.__name__
+        ret['model_architecture_params'] = self.model_architecture_params
+        ret['batch_size'] = self.batch_size
+        ret['loss_fn'] = self.loss_fn.name
+        ret['metrics'] = self.metrics
+        ret['n_epochs'] = self.n_epochs
+        ret['cosine_decay_params'] = self.cosine_decay_params
+        return ret
     
     def get_variable(self, target_var):
         """Given string name for variable, returns the Variable() object.
@@ -240,6 +280,16 @@ class BaseModelOperator():
         model.build(input_shape=())
         model.load_weights(filename)
         return model
+
+    def save_state(self, filename):
+        """Saves the state of the ModelOperator as text file.
+        """
+        if pathlib.Path(filename).suffix != '.json':
+            filename += '.json'
+
+        with open(filename, 'w') as f:
+            json.dump(self.as_dict(), f)
+
 
 
 class LinearRegressionOperator():

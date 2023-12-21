@@ -17,6 +17,32 @@ class TestVariable(unittest.TestCase):
             Variable(name='test', transform='custom', scale=0.1)
         with self.assertRaises(ValueError):
             Variable(name='test', transform='custom', offset=0.1)
+    
+    def test_ignore(self):
+        # These should trigger warning messages, and scale and offset must be ignored
+        var = Variable(name='test', transform='normalize', scale=10, offset=-2)
+        self.assertEqual(var.scale, None)
+        self.assertEqual(var.offset, None)
+        var = Variable(name='test', transform='percent', scale=10, offset=-2)
+        self.assertEqual(var.scale, None)
+        self.assertEqual(var.offset, None)
+        var = Variable(name='test', transform='identity', scale=10, offset=-2)
+        self.assertEqual(var.scale, None)
+        self.assertEqual(var.offset, None)
+
+        # If _fit==True then the behavior is different
+        var = Variable(name='test', transform='normalize', scale=10, offset=-2, _fit=True)
+        self.assertEqual(var.scale, 10)
+        self.assertEqual(var.offset, -2)
+        # if percent or identity it should still be ignored
+        var = Variable(name='test', transform='percent', scale=10, offset=-2, _fit=True)
+        self.assertEqual(var.scale, None)
+        self.assertEqual(var.offset, None)
+        var = Variable(name='test', transform='identity', scale=10, offset=-2, _fit=True)
+        self.assertEqual(var.scale, None)
+        self.assertEqual(var.offset, None)
+
+        pass
 
     def test_fit(self):
         random_values = np.random.random(100)
