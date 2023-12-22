@@ -40,7 +40,8 @@ class BaseModelOperator():
             metrics: list,
             n_epochs: int,
             model_architecture_params: dict,
-            cosine_decay_params: dict=None
+            cosine_decay_params: dict=None,
+            keras_verbose='auto'
     ):
         # meta
         self.model_version = model_version # ex. 'v0p01'
@@ -77,6 +78,7 @@ class BaseModelOperator():
 
         self.cosine_decay_params = cosine_decay_params
         self.scaler = Scaler(variables=input_variables + [output_variable])
+        self.keras_verbose = keras_verbose
 
         if not isnone(cosine_decay_params) and not isnone(constant_learning_rate):
             raise ArgumentConflictError('cosine_decay_params', 'constant_learning_rate')
@@ -144,7 +146,9 @@ class BaseModelOperator():
         
 
     
-    def evaluate_on_all_folds(self, df, folds):
+    def evaluate_on_all_folds(self, df, folds, verbose='auto'):
+        """ verbose is passed to tf.keras.models.Model.fit()
+        """
         df_valids, df_tests, histories = [], [], []
         for fold in folds:
             if self.use_validation_set:
@@ -255,7 +259,7 @@ class BaseModelOperator():
                             epochs=self.n_epochs, shuffle=True,
                             validation_data=(x_valid, y_valid) if self.use_validation_set else None,
                             callbacks=callbacks,
-                            verbose=1
+                            verbose=self.keras_verbose
         )
         return model, history
     
