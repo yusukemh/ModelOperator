@@ -115,7 +115,14 @@ class BaseModelOperator():
         ret['model_architecture_fn'] = self.model_architecture_fn.__name__
         ret['model_architecture_params'] = self.model_architecture_params
         ret['batch_size'] = self.batch_size
-        ret['loss_fn'] = self.loss_fn.name
+        try:
+            # If using tensorflow.keras.losses classes then it has attribute .name
+            ret['loss_fn'] = self.loss_fn.name
+        except AttributeError:
+            # If using custom or any function then the name has to be accessed via __name__
+            ret['loss_fn'] = self.loss_fn.__name__
+        except Exception as e:
+            raise e
         ret['metrics'] = self.metrics
         ret['n_epochs'] = self.n_epochs
         ret['cosine_decay_params'] = self.cosine_decay_params
