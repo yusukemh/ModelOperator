@@ -19,30 +19,29 @@ class TestVariable(unittest.TestCase):
             Variable(name='test', transform='custom', offset=0.1)
     
     def test_ignore(self):
-        # These should trigger warning messages, and scale and offset must be ignored
-        var = Variable(name='test', transform='normalize', scale=10, offset=-2)
-        self.assertEqual(var.scale, None)
-        self.assertEqual(var.offset, None)
-        var = Variable(name='test', transform='percent', scale=10, offset=-2)
-        self.assertEqual(var.scale, None)
-        self.assertEqual(var.offset, None)
-        var = Variable(name='test', transform='identity', scale=10, offset=-2)
-        self.assertEqual(var.scale, None)
-        self.assertEqual(var.offset, None)
+        # for transrofm == percent or transform == identiry, scale and offset are automatically assigned.
+        var = Variable(name='test', transform='percent', scale=10, offset=-2, _fit=True)
+        self.assertEqual(var.scale, 100)
+        self.assertEqual(var.offset, 50)
+        var = Variable(name='test', transform='identity', scale=10, offset=-2, _fit=True)
+        self.assertEqual(var.scale, 1)
+        self.assertEqual(var.offset, 0)
 
-        # If _fit==True then the behavior is different
+        # for normalize, it depends on _fit
+        # if _fit == True
         var = Variable(name='test', transform='normalize', scale=10, offset=-2, _fit=True)
         self.assertEqual(var.scale, 10)
         self.assertEqual(var.offset, -2)
-        # if percent or identity it should still be ignored
-        var = Variable(name='test', transform='percent', scale=10, offset=-2, _fit=True)
-        self.assertEqual(var.scale, None)
-        self.assertEqual(var.offset, None)
-        var = Variable(name='test', transform='identity', scale=10, offset=-2, _fit=True)
+        # if _fit == False, refulse the scale and offset
+        var = Variable(name='test', transform='normalize', scale=10, offset=-2)
         self.assertEqual(var.scale, None)
         self.assertEqual(var.offset, None)
 
-        pass
+        # if custom, scale and offset have to be given
+        var = Variable(name='test', transform='custom', scale=12.34, offset=5.67)
+        self.assertEqual(var.scale, 12.34)
+        self.assertEqual(var.offset, 5.67)
+        
 
     def test_fit(self):
         random_values = np.random.random(100)

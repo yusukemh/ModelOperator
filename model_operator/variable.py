@@ -6,16 +6,43 @@ class Variable():
     def __init__(self, name, transform, scale=None, offset=None, _fit=False):
         """Defines Variable and how it should be transformed as preprocessing.
         """
-        self.name = name
         # transform cannot be None
         if not transform in ['normalize', 'percent', 'identity', 'custom']:
             raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'identity', 'custom']. Got {transform} instead.")
+            
+        self.name = name
         self.transform = transform
-        # if transform == 'custom' then scale and offset must be given
-        if transform == 'custom':
+        self._fit = _fit
+
+        if transform == 'percent':
+            self.fit(values=None)
+            if (scale != 100) or (offset != 50):
+                print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
+                          f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
+        elif transform == 'identity':
+            self.fit(values=None)
+            if (scale != 1) or (offset != 0):
+                print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
+                          f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
+        elif transform == 'normalize':
+            if _fit:
+                self.scale = scale
+                self.offset = offset
+            else:
+                self.scale = None
+                self.offset = None
+                if (scale is not None) or (offset is not None):
+                    # if _fit = False and scale and offset is given, warn the user.
+                    print(f"[User Warning] Argument conflict; {transform=} but {_fit=}, {scale=}, and {offset=} specified.\n" + \
+                            f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
+
+        elif transform == 'custom':
             if (scale is None) or (offset is None):
                 raise ValueError(f"If transform == 'custom', then 'scale' and 'offset' must be specified.")
-            
+            self.scale = scale
+            self.offset = offset
+
+        """
         # if transform in ['normalize', 'percent', 'identiry'] but scale and/or offset is/are given, they will be ignored.
         if transform != 'custom':
             if (scale is not None) or (offset is not None):
@@ -38,6 +65,7 @@ class Variable():
             self.scale = scale
             self.offset = offset
         self._fit = _fit
+        """
 
     @staticmethod
     def from_dict(d):
@@ -76,9 +104,9 @@ class Variable():
         elif self.transform == 'identity':
             self.scale = 1.
             self.offset = 0.
-        elif self.transform is None:
-            # values must have been set at instantiation.
-            pass
+        # elif self.transform is None:
+        #     # values must have been set at instantiation.
+        #     pass
 
         self._fit = True
     
