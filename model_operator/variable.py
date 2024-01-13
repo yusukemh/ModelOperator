@@ -2,13 +2,15 @@ from typing import List
 import pandas as pd
 import numpy as np
 
+AVAILABLE_OPTIONS = ['normalize', 'percent', 'identity', 'minmax', 'custom']
+
 class Variable():
     def __init__(self, name, transform, scale=None, offset=None, _fit=False):
         """Defines Variable and how it should be transformed as preprocessing.
         """
         # transform cannot be None
-        if not transform in ['normalize', 'percent', 'identity', 'custom']:
-            raise ValueError(f"Expected 'transform' in ['normalize', 'percent', 'identity', 'custom']. Got {transform} instead.")
+        if not transform in AVAILABLE_OPTIONS:
+            raise ValueError(f"Expected 'transform' in {AVAILABLE_OPTIONS}. Got {transform} instead.")
             
         self.name = name
         self.transform = transform
@@ -24,7 +26,7 @@ class Variable():
             if (scale != 1) or (offset != 0):
                 print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
                           f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
-        elif transform == 'normalize':
+        elif transform in ['normalize', 'minmax']:
             if _fit:
                 self.scale = scale
                 self.offset = offset
@@ -42,30 +44,6 @@ class Variable():
             self.scale = scale
             self.offset = offset
 
-        """
-        # if transform in ['normalize', 'percent', 'identiry'] but scale and/or offset is/are given, they will be ignored.
-        if transform != 'custom':
-            if (scale is not None) or (offset is not None):
-                # if transform is not custom but scale and offset is given.
-                if transform == 'normalize' and _fit:
-                    # In this case operation is allowed.
-                    self.scale = scale
-                    self.offset = offset
-                else:
-                    # If transform='normalize' but _fit == False, OR, transform is in ['percent', 'identity']
-                    print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
-                          f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
-                    # ignore input
-                    self.scale = None
-                    self.offset = None
-            else:
-                self.scale = None
-                self.offset = None
-        else:
-            self.scale = scale
-            self.offset = offset
-        self._fit = _fit
-        """
 
     @staticmethod
     def from_dict(d):
@@ -99,14 +77,19 @@ class Variable():
         elif self.transform == 'normalize':
             self.scale = np.std(values)
             self.offset = np.mean(values)
-            if np.abs(self.scale) < 1e-4:
-                print(f'[Warning] Std for {self.name} is too small; {self.scale:.05f}. This could cause precision error.')
         elif self.transform == 'identity':
             self.scale = 1.
             self.offset = 0.
-        # elif self.transform is None:
-        #     # values must have been set at instantiation.
-        #     pass
+        elif self.transform == 'minmax':
+            self.scale = np.max(values) - np.min(values)
+            self.offset = np.min(values)
+        elif self.transform == 'custom':
+            pass
+        else:
+            raise NotImplementedError()
+
+        if np.abs(self.scale) < 1e-4:
+                raise ValueError(f'[Warning] Std for {self.name} is too small; {self.scale:.05f}. This could cause precision error.')
 
         self._fit = True
     
