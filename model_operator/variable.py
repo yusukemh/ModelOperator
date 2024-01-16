@@ -18,12 +18,16 @@ class Variable():
 
         if transform == 'percent':
             self.fit(values=None)
-            if (scale != 100) or (offset != 50):
+            if scale is None and offset is None:
+                pass
+            elif (scale != 100) or (offset != 50):
                 print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
                           f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
         elif transform == 'identity':
             self.fit(values=None)
-            if (scale != 1) or (offset != 0):
+            if scale is None and offset is None:
+                pass
+            elif (scale != 1) or (offset != 0):
                 print(f"[User Warning] Argument conflict; {transform=} but {scale=} and {offset=} specified.\n" + \
                           f"'scale' and/or 'offset' will be ignored for this Variable object {self.__repr__()}.")
         elif transform in ['normalize', 'minmax']:
